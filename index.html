@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simulador de Campo de Esfregaço — Leucograma (v3)</title>
+<style>
+  :root{
+    --bg:#f5f7fb;
+    --panel:#ffffff;
+    --ink:#0f172a;
+    --muted:#64748b;
+    --accent:#2563eb;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif}
+  .app{display:grid;grid-template-columns:400px 1fr;gap:16px;max-width:1600px;margin:16px auto;padding:16px}
+  .panel{background:var(--panel);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.06);padding:16px}
+  h1{font-size:20px;margin:6px 0 8px}
+  h2{font-size:16px;margin:16px 0 8px;color:var(--muted)}
+  .ctrl{display:grid;gap:8px}
+  .row{display:grid;grid-template-columns: 1fr auto; gap:8px; align-items:center}
+  label{font-weight:600}
+  input[type=range]{width:100%}
+  select{width:100%;padding:10px;border-radius:10px;border:1px solid #e5e7eb;background:#fff}
+  .small{font-size:12px;color:var(--muted)}
+  .badge{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:999px;padding:2px 10px;font-size:12px}
+  .btn{appearance:none;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;background:#fff;cursor:pointer}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .legend .item{display:flex;align-items:center;gap:6px;font-size:12px;color:#111827;background:#f3f4f6;padding:4px 8px;border-radius:999px}
+  .dot{width:10px;height:10px;border-radius:999px;display:inline-block}
+  canvas{width:100%;height:auto;background:#fafafa;border-radius:16px;box-shadow:inset 0 0 0 1px #e5e7eb;cursor:grab}
+  canvas:active{cursor:grabbing}
+  .note{font-size:12px;color:#6b7280;margin-top:10px;line-height:1.25}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .panner{display:grid;grid-template-columns:1fr 60px 1fr;grid-template-rows:60px 60px 60px;gap:6px;justify-items:center;align-items:center;margin-top:8px}
+  .panner .arrow{width:60px;height:60px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer}
+  .mini{margin-top:6px;font-size:12px;color:#6b7280}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f3f4f6;border:1px solid #e5e7eb;border-bottom-width:2px;border-radius:6px;padding:1px 6px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="panel">
+    <h1>Simulador de campo de esfregaço — Leucograma (v3)</h1>
+    <div class="small">Agora com paleta <b>Wright–Giemsa</b> por padrão e opção de alternar para <b>H&E</b>. Campo navegável numa área 4× maior.</div>
+
+    <h2>Perfil clínico</h2>
+    <div class="ctrl">
+      <select id="perfil">
+        <option value="normal">Leucograma padrão (normal)</option>
+        <option value="neutrofilia">Neutrofilia</option>
+        <option value="neutropenia">Neutropenia</option>
+        <option value="desvio_reg">Desvio à esquerda (regenerativo)</option>
+        <option value="desvio_deg">Desvio à esquerda (degenerativo)</option>
+        <option value="linfocitose">Linfocitose</option>
+        <option value="linfopenia">Linfopenia (estresse/cortisol)</option>
+        <option value="monocitose">Monocitose</option>
+        <option value="eosinofilia">Eosinofilia</option>
+        <option value="eosinopenia">Eosinopenia (estresse)</option>
+        <option value="basofilia">Basofilia</option>
+        <option value="inflam_aguda">Leucocitose inflamatória aguda</option>
+        <option value="estresse">Leucocitose por estresse</option>
+        <option value="reacao_leucemoide">Reação leucemoide</option>
+        <option value="leucopenia">Leucopenia</option>
+        <option value="linfocitose_reativa">Linfocitose reativa</option>
+        <option value="inflam_cronica_ativa">Inflamação crônica ativa</option>
+        <option value="inflam_cronica_tardia">Inflamação crônica tardia</option>
+        <option value="alergia_parasitas">Alergia/Parasitoses</option>
+        <option value="hipercortisolismo">Hipercortisolismo/Terapia GC</option>
+        <option value="mieloproliferativa">Doença mieloproliferativa</option>
+      </select>
+      <div class="small">Selecione um padrão para ajustar as proporções automaticamente; você pode refinar nos *sliders*.</div>
+    </div>
+
+    <h2>Parâmetros</h2>
+    <div class="ctrl">
+      <div class="row">
+        <label for="totalWBC">Leucócitos no campo</label>
+        <span><span id="totalWBCVal" class="badge">18</span></span>
+      </div>
+      <input id="totalWBC" type="range" min="0" max="60" value="18" step="1"/>
+      <div class="row">
+        <label for="paleta">Paleta de coloração</label>
+        <span></span>
+      </div>
+      <select id="paleta">
+        <option value="wright" selected>Wright–Giemsa</option>
+        <option value="he">Hematoxilina & Eosina (H&E)</option>
+      </select>
+    </div>
+
+    <h2>Proporções dos leucócitos (%)</h2>
+    <div class="ctrl" id="sliders"></div>
+    <div class="small">As proporções são normalizadas para 100%.</div>
+    <div class="legend" id="legend"></div>
+
+    <h2>Ações</h2>
+    <div class="grid3">
+      <button id="regenerate" class="btn">Regenerar distribuição</button>
+      <button id="exportPng" class="btn">Exportar PNG</button>
+      <button id="resetPerc" class="btn">Resetar proporções</button>
+    </div>
+
+    <h2>Mover campo (área 4×)</h2>
+    <div class="panner">
+      <div></div>
+      <button class="arrow" id="panUp">↑</button>
+      <div></div>
+      <button class="arrow" id="panLeft">←</button>
+      <div></div>
+      <button class="arrow" id="panRight">→</button>
+      <div></div>
+      <button class="arrow" id="panDown">↓</button>
+      <div></div>
+    </div>
+    <div class="mini">Arraste o campo com o mouse/Toque. Teclas <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> funcionam.</div>
+
+    <div class="note" id="note"></div>
+  </div>
+
+  <div class="panel">
+    <canvas id="smear" width="1200" height="800" aria-label="Campo microscópico simulado"></canvas>
+  </div>
+</div>
+
+<script>
+// ---- Sizes and world ----
+const VIEW_W = 1200, VIEW_H = 800;
+const WORLD_SCALE = 2;
+const CANVAS_W = VIEW_W * WORLD_SCALE;
+const CANVAS_H = VIEW_H * WORLD_SCALE;
+
+// RBC density scaled with area
+const RBC_BASE_COUNT = 280;
+const RBC_COUNT = RBC_BASE_COUNT * WORLD_SCALE * WORLD_SCALE;
+const RBC_R_MEAN = 14, RBC_R_SD = 1.5;
+const WBC_R = 22;
+
+// Palettes
+const PALETTES = {
+  wright: {
+    name: "Wright–Giemsa",
+    nucleus: "#2b3b9a",          // dark blue-purple chromatin
+    cytoplasm: "#f2d6d6",       // neutrophil/eosin general base (pale salmon)
+    neutGranule: "rgba(90,70,160,0.22)", // lilac/tan
+    eosGranule: "#e2572f",      // orange-red
+    basoGranule: "#2b3b9a",     // deep purple-blue
+    monoCyt: "#bcc9d6",         // gray-blue
+    lymphCyt: "#cfe3ff",        // pale blue rim
+    rbc1: "#f4b5b5", rbc2: "#f0a4a4", rbcHighlight: "#ffdede", rbcShadow:"#e28d8d"
+  },
+  he: {
+    name: "H&E",
+    nucleus: "#4b2b7f",
+    cytoplasm: "#f5c7c7",
+    neutGranule: "rgba(133,77,173,0.20)",
+    eosGranule: "#e6533c",
+    basoGranule: "#4b2b7f",
+    monoCyt: "#c8d2dc",
+    lymphCyt: "#d3e1f5",
+    rbc1: "#f3bcbc", rbc2:"#f0a8a8", rbcHighlight:"#ffdede", rbcShadow:"#e28d8d"
+  }
+};
+
+let palette = PALETTES.wright;
+
+const TYPES = [
+  { key: "neutro", label: "Neutrófilos", color:"#7c3aed", default: 58 },
+  { key: "lymph",  label: "Linfócitos",  color:"#2563eb", default: 32 },
+  { key: "mono",   label: "Monócitos",   color:"#0ea5e9", default: 6  },
+  { key: "eos",    label: "Eosinófilos", color:"#ef4444", default: 3  },
+  { key: "baso",   label: "Basófilos",   color:"#111827", default: 1  }
+];
+
+const PRESETS = {
+  normal:        {neutro:58, lymph:32, mono:6,  eos:3, baso:1},
+  neutrofilia:   {neutro:80, lymph:12, mono:6,  eos:1, baso:1},
+  neutropenia:   {neutro:30, lymph:55, mono:10, eos:4, baso:1},
+  desvio_reg:    {neutro:75, lymph:15, mono:7,  eos:2, baso:1},
+  desvio_deg:    {neutro:60, lymph:20, mono:10, eos:9, baso:1},
+  linfocitose:   {neutro:40, lymph:50, mono:6,  eos:3, baso:1},
+  linfopenia:    {neutro:70, lymph:15, mono:10, eos:4, baso:1},
+  monocitose:    {neutro:50, lymph:30, mono:18, eos:1, baso:1},
+  eosinofilia:   {neutro:45, lymph:35, mono:6,  eos:12, baso:2},
+  eosinopenia:   {neutro:65, lymph:26, mono:7,  eos:1, baso:1},
+  basofilia:     {neutro:50, lymph:30, mono:6,  eos:6,  baso:8},
+  inflam_aguda:  {neutro:82, lymph:8,  mono:8,  eos:1,  baso:1},
+  estresse:      {neutro:72, lymph:16, mono:9,  eos:2,  baso:1},
+  reacao_leucemoide: {neutro:88, lymph:6, mono:4, eos:1, baso:1},
+  leucopenia:    {neutro:28, lymph:55, mono:12, eos:4, baso:1},
+  linfocitose_reativa: {neutro:35, lymph:55, mono:6, eos:3, baso:1},
+  inflam_cronica_ativa: {neutro:62, lymph:20, mono:15, eos:2, baso:1},
+  inflam_cronica_tardia:{neutro:45, lymph:30, mono:22, eos:2, baso:1},
+  alergia_parasitas: {neutro:42, lymph:36, mono:6, eos:14, baso:2},
+  hipercortisolismo: {neutro:74, lymph:14, mono:10, eos:1, baso:1},
+  mieloproliferativa: {neutro:70, lymph:15, mono:6, eos:4, baso:5}
+};
+
+let state = {
+  totalWBC: 18,
+  perc: Object.fromEntries(TYPES.map(t => [t.key, t.default])),
+  seed: Math.random()*1e9|0,
+  viewX: 0, viewY: 0
+};
+
+function seededRandom(seed){ let x = seed||123456789; return function(){ x^=x<<13; x^=x>>>17; x^=x<<5; return (x>>>0)/4294967296; } }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function normPerc(p){ const s = Object.values(p).reduce((a,b)=>a+b,0)||1; const out={}; for(const k in p){ out[k]=p[k]*100/s; } return out; }
+
+const slidersDiv = document.getElementById("sliders");
+const legendDiv = document.getElementById("legend");
+const noteDiv = document.getElementById("note");
+const totalWBC = document.getElementById("totalWBC");
+const totalWBCVal = document.getElementById("totalWBCVal");
+const perfilSel = document.getElementById("perfil");
+const paletaSel = document.getElementById("paleta");
+
+function applyPreset(name){
+  const p = PRESETS[name] || PRESETS.normal;
+  TYPES.forEach(t => state.perc[t.key] = p[t.key]);
+  buildSliders();
+  render(true);
+}
+function buildSliders(){
+  slidersDiv.innerHTML = ""; legendDiv.innerHTML = "";
+  TYPES.forEach(t => {
+    const row = document.createElement("div"); row.className="row";
+    const label = document.createElement("label"); label.textContent=t.label; label.setAttribute("for","p_"+t.key);
+    const val = document.createElement("span"); val.className="badge"; val.id="v_"+t.key; val.textContent = state.perc[t.key].toFixed(0);
+    row.appendChild(label); row.appendChild(val);
+    const rng = document.createElement("input"); rng.type="range"; rng.min=0; rng.max=100; rng.step=1; rng.value=state.perc[t.key]; rng.id="p_"+t.key;
+    rng.addEventListener("input", e => { state.perc[t.key]=+e.target.value; document.getElementById("v_"+t.key).textContent=(+e.target.value).toFixed(0); render(true); });
+    slidersDiv.appendChild(row); slidersDiv.appendChild(rng);
+    const leg = document.createElement("div"); leg.className="item"; leg.innerHTML=`<span class="dot" style="background:${t.color}"></span>${t.label}`; legendDiv.appendChild(leg);
+  });
+  totalWBC.value = state.totalWBC; totalWBCVal.textContent=state.totalWBC;
+}
+
+totalWBC.addEventListener("input", e => { state.totalWBC=+e.target.value; totalWBCVal.textContent=state.totalWBC; render(true); });
+perfilSel.addEventListener("change", e => applyPreset(e.target.value));
+paletaSel.addEventListener("change", e => { palette = PALETTES[e.target.value] || PALETTES.wright; render(true); });
+
+document.getElementById("regenerate").addEventListener("click", ()=>{ state.seed = Math.random()*1e9|0; render(true); });
+document.getElementById("exportPng").addEventListener("click", ()=>{
+  const link = document.createElement("a"); link.download="campo_esfregaco.png"; link.href = viewCanvas.toDataURL("image/png"); link.click();
+});
+document.getElementById("resetPerc").addEventListener("click", ()=>{ TYPES.forEach(t=>state.perc[t.key]=t.default); perfilSel.value="normal"; buildSliders(); render(true); });
+
+// Panning controls
+const PAN_STEP = 160;
+document.getElementById("panUp").addEventListener("click", ()=>{ state.viewY = clamp(state.viewY - PAN_STEP, 0, CANVAS_H - VIEW_H); present(); });
+document.getElementById("panDown").addEventListener("click", ()=>{ state.viewY = clamp(state.viewY + PAN_STEP, 0, CANVAS_H - VIEW_H); present(); });
+document.getElementById("panLeft").addEventListener("click", ()=>{ state.viewX = clamp(state.viewX - PAN_STEP, 0, CANVAS_W - VIEW_W); present(); });
+document.getElementById("panRight").addEventListener("click", ()=>{ state.viewX = clamp(state.viewX + PAN_STEP, 0, CANVAS_H - VIEW_H); present(); });
+window.addEventListener("keydown", e => {
+  if(e.key==='w'||e.key==='W'){ state.viewY = clamp(state.viewY - PAN_STEP, 0, CANVAS_H - VIEW_H); present(); }
+  if(e.key==='s'||e.key==='S'){ state.viewY = clamp(state.viewY + PAN_STEP, 0, CANVAS_H - VIEW_H); present(); }
+  if(e.key==='a'||e.key==='A'){ state.viewX = clamp(state.viewX - PAN_STEP, 0, CANVAS_W - VIEW_W); present(); }
+  if(e.key==='d'||e.key==='D'){ state.viewX = clamp(state.viewX + PAN_STEP, 0, CANVAS_H - VIEW_H); present(); }
+});
+
+// ---- Drawing ----
+let prng = seededRandom(state.seed);
+function randn(prng){ const u=prng()||1e-9, v=prng()||1e-9; return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+
+function drawRBC(ctx,x,y,r){
+  const grad = ctx.createRadialGradient(x,y,r*0.3, x,y,r);
+  grad.addColorStop(0, palette.rbcHighlight);
+  grad.addColorStop(0.7, palette.rbc1);
+  grad.addColorStop(1, palette.rbc2);
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.ellipse(x,y,r*1.05,r,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = palette.rbcShadow; ctx.lineWidth=1; ctx.globalAlpha=0.35;
+  ctx.beginPath(); ctx.ellipse(x,y,r*0.7,r*0.7,0,0,Math.PI*2); ctx.stroke(); ctx.globalAlpha=1;
+}
+function placeNonOverlapping(count, radius, prng, margin=4, existing=[]){
+  const placed=[]; let tries=0, maxTries=count*250;
+  while(placed.length<count && tries<maxTries){
+    const x = margin+radius + prng()*(CANVAS_W-2*(margin+radius));
+    const y = margin+radius + prng()*(CANVAS_H-2*(margin+radius));
+    let ok=true;
+    for(const p of placed.concat(existing)){
+      const dx=p.x-x, dy=p.y-y;
+      if(dx*dx+dy*dy < (p.r+radius+margin)*(p.r+radius+margin)){ ok=false; break; }
+    }
+    if(ok) placed.push({x,y,r:radius});
+    tries++;
+  }
+  return placed;
+}
+function drawCellBoundary(ctx,cx, cy, r, cytColor){
+  const grad = ctx.createRadialGradient(cx,cy,r*0.2, cx,cy,r);
+  grad.addColorStop(0, "#ffffff");
+  grad.addColorStop(0.5, cytColor);
+  grad.addColorStop(1, cytColor);
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.ellipse(cx,cy,r*1.05,r,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.08)"; ctx.lineWidth=1; ctx.stroke();
+}
+function drawGranules(ctx,cx, cy, r, count, color, prng){
+  ctx.fillStyle = color; ctx.globalAlpha=0.9;
+  for(let i=0;i<count;i++){
+    const ang=prng()*Math.PI*2, rad=prng()*r*0.8;
+    const x=cx+Math.cos(ang)*rad, y=cy+Math.sin(ang)*rad*0.9;
+    const rr = 1.1 + prng()*1.9;
+    ctx.beginPath(); ctx.ellipse(x,y,rr,rr,0,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+function drawNucleusLobes(ctx,cx, cy, r, lobes, prng){
+  ctx.fillStyle = palette.nucleus; ctx.strokeStyle = palette.nucleus; ctx.lineWidth=2;
+  let angle=prng()*Math.PI*2;
+  for(let i=0;i<lobes;i++){
+    const rr=r*0.38, a=angle + (i - (lobes-1)/2)*0.9;
+    const x=cx+Math.cos(a)*r*0.35, y=cy+Math.sin(a)*r*0.35;
+    ctx.beginPath(); ctx.ellipse(x,y, rr*0.95, rr*1.05, a*0.2, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=0.8;
+  for(let i=0;i<lobes-1;i++){
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(angle + (i - (lobes-1)/2)*0.9)*r*0.35, cy + Math.sin(angle + (i - (lobes-1)/2)*0.9)*r*0.35);
+    ctx.lineTo(cx + Math.cos(angle + (i+1 - (lobes-1)/2)*0.9)*r*0.35, cy + Math.sin(angle + (i+1 - (lobes-1)/2)*0.9)*r*0.35);
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawNeutrophil(ctx,cx,cy){
+  // Pale salmon cytoplasm; fine lilac granules; multilobed nucleus
+  drawCellBoundary(ctx,cx,cy,WBC_R, palette.cytoplasm);
+  drawGranules(ctx,cx,cy,WBC_R, 60, palette.neutGranule, prng);
+  drawNucleusLobes(ctx,cx,cy,WBC_R, 3 + (prng()*3|0), prng);
+}
+function drawLymphocyte(ctx,cx,cy){
+  drawCellBoundary(ctx,cx,cy,WBC_R*0.85, palette.lymphCyt);
+  ctx.fillStyle = palette.nucleus;
+  ctx.beginPath(); ctx.ellipse(cx,cy,WBC_R*0.62,WBC_R*0.64,0,0,Math.PI*2); ctx.fill();
+}
+function drawMonocyte(ctx,cx,cy){
+  drawCellBoundary(ctx,cx,cy,WBC_R*1.05, palette.monoCyt);
+  ctx.fillStyle = palette.nucleus;
+  ctx.beginPath(); ctx.ellipse(cx-4,cy, WBC_R*0.55, WBC_R*0.70, -0.2, Math.PI*0.2, Math.PI*1.8); ctx.fill();
+  drawGranules(ctx,cx,cy,WBC_R, 16, "rgba(43,59,154,0.18)", prng); // faint azurophilic
+}
+function drawEosinophil(ctx,cx,cy){
+  drawCellBoundary(ctx,cx,cy,WBC_R, palette.cytoplasm);
+  ctx.fillStyle = palette.nucleus;
+  ctx.beginPath(); ctx.ellipse(cx-6,cy, WBC_R*0.38, WBC_R*0.45, 0.15, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx+6,cy, WBC_R*0.38, WBC_R*0.45, -0.15, 0, Math.PI*2); ctx.fill();
+  drawGranules(ctx,cx,cy,WBC_R, 120, palette.eosGranule, prng);
+}
+function drawBasophil(ctx,cx,cy){
+  drawCellBoundary(ctx,cx,cy,WBC_R, palette.cytoplasm);
+  drawGranules(ctx,cx,cy,WBC_R, 170, palette.basoGranule, prng);
+}
+const drawFns = { neutro:drawNeutrophil, lymph:drawLymphocyte, mono:drawMonocyte, eos:drawEosinophil, baso:drawBasophil };
+
+// World + viewport canvas
+const worldCanvas = document.createElement('canvas'); worldCanvas.width=CANVAS_W; worldCanvas.height=CANVAS_H;
+const worldCtx = worldCanvas.getContext('2d');
+const viewCanvas = document.getElementById("smear");
+const viewCtx = viewCanvas.getContext("2d");
+
+let worldPlacements = { rbc: [], wbc: [] };
+let prngLocal = seededRandom(state.seed);
+
+function generateWorld(){
+  prngLocal = seededRandom(state.seed);
+  worldCtx.clearRect(0,0,CANVAS_W,CANVAS_H);
+  worldPlacements = { rbc: [], wbc: [] };
+
+  // RBCs
+  for(let i=0;i<RBC_COUNT;i++){
+    const r = clamp(RBC_R_MEAN + (function(){ const u=prngLocal()||1e-9, v=prngLocal()||1e-9; return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);} )(), RBC_R_MEAN-2.5, RBC_R_MEAN+2.5);
+    const x = r + 8 + prngLocal()*(CANVAS_W - 2*(r+8));
+    const y = r + 8 + prngLocal()*(CANVAS_H - 2*(r+8));
+    worldPlacements.rbc.push({x,y,r});
+  }
+  worldPlacements.rbc.sort((a,b)=>a.y-b.y);
+  worldPlacements.rbc.forEach(p => drawRBC(worldCtx,p.x,p.y,p.r));
+
+  // WBCs
+  state.perc = normPerc(state.perc);
+  const worldTotalWBC = state.totalWBC * WORLD_SCALE * WORLD_SCALE;
+  const counts = {}; let sum=0;
+  TYPES.forEach(t => { counts[t.key]=Math.round(worldTotalWBC*state.perc[t.key]/100); sum+=counts[t.key]; });
+  if(sum!==worldTotalWBC){
+    const major = TYPES.slice().sort((a,b)=>state.perc[b.key]-state.perc[a.key])[0].key;
+    counts[major] += (worldTotalWBC - sum);
+  }
+  let allPlaced = [];
+  TYPES.forEach(t => {
+    const pcs = placeNonOverlapping(counts[t.key], WBC_R*1.2, prngLocal, 6, allPlaced);
+    pcs.forEach(p => { p.type=t.key; });
+    allPlaced = allPlaced.concat(pcs);
+  });
+  allPlaced.sort((a,b)=>a.y-b.y);
+  worldPlacements.wbc = allPlaced;
+  worldPlacements.wbc.forEach(p => drawFns[p.type](worldCtx,p.x,p.y));
+}
+
+function present(){
+  viewCtx.clearRect(0,0,VIEW_W,VIEW_H);
+  viewCtx.drawImage(worldCanvas, state.viewX, state.viewY, VIEW_W, VIEW_H, 0, 0, VIEW_W, VIEW_H);
+
+  // Local counts in viewport
+  const localCounts = {neutro:0, lymph:0, mono:0, eos:0, baso:0};
+  const vx=state.viewX, vy=state.viewY, x2=vx+VIEW_W, y2=vy+VIEW_H;
+  for(const p of worldPlacements.wbc){ if(p.x>vx-40&&p.x<x2+40&&p.y>vy-40&&p.y<y2+40){ localCounts[p.type]++; } }
+  const pad=10; viewCtx.globalAlpha=0.9; viewCtx.fillStyle="rgba(255,255,255,0.8)"; viewCtx.fillRect(pad, VIEW_H-54, 520, 44);
+  viewCtx.globalAlpha=1; viewCtx.fillStyle="#111827"; viewCtx.font="14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  let x=pad+8; const localTotal=Object.values(localCounts).reduce((a,b)=>a+b,0);
+  viewCtx.fillText(`Neste campo: ${localTotal}`, x, VIEW_H-28); x+=130;
+  TYPES.forEach(t=>{ const pct=(localTotal>0)? Math.round(localCounts[t.key]*100/localTotal):0; viewCtx.fillText(`${t.label}: ${localCounts[t.key]} (${pct}%)`, x, VIEW_H-28); x+=180; });
+
+  noteDiv.innerHTML = `Paleta atual: <b>${palette.name}</b>. Arraste para mover; área total <b>${WORLD_SCALE}×${WORLD_SCALE}</b>.`;
+}
+
+function render(forceNew=false){
+  if(forceNew){ generateWorld(); present(); return; }
+  generateWorld(); present();
+}
+
+// Mouse/touch panning
+let dragging=false, lastX=0, lastY=0;
+viewCanvas.addEventListener("mousedown", e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; });
+window.addEventListener("mousemove", e=>{
+  if(!dragging) return;
+  const dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY;
+  state.viewX = clamp(state.viewX - dx, 0, CANVAS_H - VIEW_W);
+  state.viewY = clamp(state.viewY - dy, 0, CANVAS_H - VIEW_H);
+  present();
+});
+window.addEventListener("mouseup", ()=> dragging=false);
+viewCanvas.addEventListener("touchstart", e=>{ if(e.touches.length===1){ dragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; } }, {passive:true});
+viewCanvas.addEventListener("touchmove", e=>{
+  if(dragging && e.touches.length===1){
+    const dx=e.touches[0].clientX-lastX, dy=e.touches[0].clientY-lastY; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+    state.viewX = clamp(state.viewX - dx, 0, CANVAS_W - VIEW_W);
+    state.viewY = clamp(state.viewY - dy, 0, CANVAS_H - VIEW_H);
+    present();
+  }
+}, {passive:true});
+viewCanvas.addEventListener("touchend", ()=> dragging=false);
+
+// Init
+function init(){
+  buildSliders();
+  document.getElementById("perfil").value="normal";
+  document.getElementById("paleta").value="wright";
+  state.viewX = Math.floor((CANVAS_W - VIEW_W)/2);
+  state.viewY = Math.floor((CANVAS_H - VIEW_H)/2);
+  render(true);
+}
+init();
+</script>
+</body>
+</html>
